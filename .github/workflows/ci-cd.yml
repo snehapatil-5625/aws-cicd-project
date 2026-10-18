@@ -101,9 +101,9 @@ jobs:
           ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
           sed "s|IMAGE_PLACEHOLDER|$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" \
-            k8s/deployment.yaml | kubectl apply -f -
+            k8s/deployment.yml | kubectl apply -f -
 
-          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/service.yml
 
       - name: Wait for rollout
         run: |
