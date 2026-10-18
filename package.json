@@ -1,0 +1,12 @@
+{
+  "name": "aws-cicd-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node app.js",
+    "test": "jest --runInBand"
+  },
+  "devDependencies": {
+    "jest": "^30.0.0"
+  }
+}
