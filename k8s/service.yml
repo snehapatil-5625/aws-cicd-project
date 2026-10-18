@@ -1,8 +1,9 @@
-kind: Service
 apiVersion: v1
+kind: Service
+
 metadata:
-  - name: app-service
-    namespace: app
+  name: app-service
+  namespace: app
 spec:
   type: NodePort
   selector:
