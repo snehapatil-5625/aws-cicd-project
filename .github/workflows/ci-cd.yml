@@ -1,0 +1,122 @@
+name: Build, Test and deploy applocation
+
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: [self-hosted,linux]
+    env:
+      AWS_REGION: ${{vars.AWS_REGION}}
+      AWS_ACCOUNT_ID: ${{vars.AWS_ACCOUNT_ID}}
+      ECR_REPOSITORY: ${{vars.ECR_REPOSITORY}}
+    outputs:
+      image_tag: ${{steps.image-meta.outputs.image_tag}}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+      - name: setup nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Runs test
+        run: npm test
+      - name: set image tag
+        id: image-meta
+        run: echo "image_tag=${GITHUB_SHA}"
+      - name: verify ECR IAM role
+        run: aws sts get-caller-identity
+
+      - name: Login to amazon ECR
+        run: |
+          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          aws ecr get-login-password --region "$AWS_REGION" |
+            docker login \
+              --username AWS \
+              --password-stdin "$ECR_REGISTRY"
+
+     - name: Build and push Docker image
+        run: |
+          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA" .
+
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+
+
+
+
+  deploy:
+    needs: build-and-test
+    runs-on: [self-hosted, linux]
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      K8S_NAMESPACE: app
+      IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify EC2 IAM role
+        run: aws sts get-caller-identity
+
+      - name: Verify k8s cluster connection
+        run: |
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Create application namespace
+        run: |
+          kubectl create namespace "$K8S_NAMESPACE" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Refresh ECR pull secret
+        run: |
+          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          ECR_PASSWORD=$(aws ecr get-login-password \
+            --region "$AWS_REGION")
+
+          kubectl create secret docker-registry ecr-registry \
+            --namespace "$K8S_NAMESPACE" \
+            --docker-server="$ECR_REGISTRY" \
+            --docker-username=AWS \
+            --docker-password="$ECR_PASSWORD" \
+            --dry-run=client -o yaml |
+            kubectl apply -f -
+
+      - name: Deploy application
+        run: |
+          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          sed "s|IMAGE_PLACEHOLDER|$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG|g" \
+            k8s/deployment.yaml | kubectl apply -f -
+
+          kubectl apply -f k8s/service.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/app-deployment \
+            -n "$K8S_NAMESPACE" \
+            --timeout=180s
+
+      - name: Verify deployment
+        run: |
+          kubectl get deployments,pods,services \
+            -n "$K8S_NAMESPACE"
+
+
+
