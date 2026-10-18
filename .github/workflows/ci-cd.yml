@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: [self-hosted,linux]
+    runs-on: [self-hosted, linux]
     env:
       AWS_REGION: ${{vars.AWS_REGION}}
       AWS_ACCOUNT_ID: ${{vars.AWS_ACCOUNT_ID}}
