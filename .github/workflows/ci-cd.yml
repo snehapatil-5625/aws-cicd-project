@@ -1,4 +1,4 @@
-name: Build, Test and deploy applocation
+name: Build, Test and deploy application
 
 on:
   push:
