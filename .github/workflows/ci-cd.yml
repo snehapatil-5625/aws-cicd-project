@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: [self-hosted, linux]
+    runs-on: self-hosted
     env:
       AWS_REGION: ${{vars.AWS_REGION}}
       AWS_ACCOUNT_ID: ${{vars.AWS_ACCOUNT_ID}}
@@ -43,7 +43,7 @@ jobs:
               --username AWS \
               --password-stdin "$ECR_REGISTRY"
 
-     - name: Build and push Docker image
+      - name: Build and push Docker image
         run: |
           ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
@@ -53,18 +53,16 @@ jobs:
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
 
 
-
-
   deploy:
     needs: build-and-test
-    runs-on: [self-hosted, linux]
+    runs-on: self-hosted
 
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
       K8S_NAMESPACE: app
-      IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+      IMAGE_TAG: ${{ needs.build-and-test.outputs.image_tag }}
 
     steps:
       - name: Checkout code
