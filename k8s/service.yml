@@ -9,7 +9,7 @@ spec:
   selector:
     label: cicd-demo
   ports:
-    port: 80
-    targetPort: 3000
-    nodePort: 30080
+   - port: 80
+     targetPort: 3000
+     nodePort: 30080
 
