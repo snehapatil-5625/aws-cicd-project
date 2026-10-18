@@ -1,0 +1,29 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  - name: app-deployment
+    namespace: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      label: cicd-demo
+  template:
+    metadata:
+      labels:
+        label: cicd-demo
+    spec:
+      imagePullSecrets:
+        - name: ecr-registry
+      container:
+        - name: demo-app
+          image: IMAGE_PLACEHOLDER
+          ports:
+            containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+

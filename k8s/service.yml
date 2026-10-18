@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  - name: app-service
+    namespace: app
+spec:
+  type: NodePort
+  selector:
+    label: cicd-demo
+  ports:
+    port: 80
+    targetPort: 3000
+    nodePort: 30080
+
